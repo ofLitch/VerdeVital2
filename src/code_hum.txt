@@ -1,0 +1,98 @@
+/**
+ * @file humidity_sender.cpp
+ * @brief Nodo sensor de humedad que envía datos vía UDP a un receptor.
+ * 
+ * @details Este nodo ESP32 utiliza un sensor DHT11 para medir la humedad y transmite los datos
+ * empaquetados como una estructura binaria a través de UDP hacia un receptor con IP conocida.
+ * La transmisión se realiza cada 2 segundos. El código incluye la configuración de WiFi y el manejo 
+ * 
+ * @version 1.0
+ * @date 2025-05-06
+ */
+
+#include <WiFi.h>
+#include <WiFiUdp.h>
+#include <DHT.h>
+
+// === WiFi Configuration ===
+#define WIFI_SSID     "Pomona Altos"
+#define WIFI_PASSWORD "altosdepomona2525AP"
+
+// === UDP Receiver Settings ===
+#define RECEIVER_IP   "192.168.1.11"
+#define RECEIVER_PORT 4210
+
+// === DHT Sensor Configuration ===
+#define DHT_PIN   4
+#define DHT_TYPE  DHT11
+DHT dht(DHT_PIN, DHT_TYPE);
+
+// === UDP Object ===
+WiFiUDP udp;
+
+/**
+ * @struct SensorData
+ * @brief Estructura de datos enviada por UDP.
+ * @details Contiene un identificador de sensor (ID) y un valor flotante (dato medido).
+ */
+struct SensorData {
+  uint8_t id;   ///< Identificador del tipo de sensor (1 = humedad)
+  float data;   ///< Valor medido (humedad)
+};
+
+/**
+ * @brief Conecta el ESP32 a la red WiFi especificada.
+ * @details El ESP32 espera en bucle hasta establecer la conexión correctamente.
+ */
+void connectToWiFi() {
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  Serial.print("Conectando a WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\n✅ Conectado a WiFi");
+}
+
+/**
+ * @brief Envía los datos del sensor a través de UDP.
+ * @param data Paquete de datos que será transmitido como bytes.
+ */
+void sendSensorData(const SensorData& data) {
+  udp.beginPacket(RECEIVER_IP, RECEIVER_PORT);
+  udp.write((uint8_t*)&data, sizeof(SensorData));
+  udp.endPacket();
+}
+
+/**
+ * @brief Función de inicialización del sistema.
+ * @details Inicializa la comunicación serial, el sensor DHT y la conexión WiFi.
+ */
+void setup() {
+  Serial.begin(115200);
+  dht.begin();
+  connectToWiFi();
+}
+
+/**
+ * @brief Bucle principal que mide la humedad y la envía al receptor.
+ * @details Si la lectura es válida, crea la estructura de datos y la envía por UDP.
+ */
+void loop() {
+  float humidity = dht.readHumidity();
+
+  if (isnan(humidity)) {
+    Serial.println("⚠️ Error al leer la humedad");
+    delay(2000);
+    return;
+  }
+
+  SensorData packet;
+  packet.id = 1;        // ID para sensor de humedad
+  packet.data = humidity;
+
+  sendSensorData(packet);
+
+  Serial.printf("📤 Enviado -> ID: %d | Humedad: %.2f%%\n", packet.id, packet.data);
+  delay(2000);
+}

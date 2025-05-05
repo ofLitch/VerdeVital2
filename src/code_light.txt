@@ -1,0 +1,87 @@
+/**
+ * @file light_sensor_sender.cpp
+ * @brief Nodo emisor de luz usando ESP32 y LDR.
+ *
+ * @details Este nodo se conecta a una red WiFi, lee la intensidad de luz desde una LDR
+ * conectada a un pin analógico del ESP32 y envía los datos empaquetados (ID + float) 
+ * a un receptor UDP remoto.
+ * La transmisión se realiza cada 2 segundos.
+ * El código incluye la configuración de WiFi y el manejo de UDP.
+ *
+ * @version 1.0
+ * @date 2025-05-06
+ */
+
+#include <WiFi.h>
+#include <WiFiUdp.h>
+
+// === Configuración de red WiFi ===
+const char* ssid = "Pomona Altos";
+const char* password = "altosdepomona2525AP";
+
+// === Configuración del receptor UDP ===
+const char* udpAddress = "192.168.1.11"; // Dirección IP del receptor
+const int udpPort = 4210;                // Puerto UDP del receptor
+
+// === Pin del sensor de luz ===
+#define LIGHT_SENSOR_PIN 34  // Pin analógico válido del ESP32
+
+// === Estructura para envío de datos ===
+struct SensorData {
+  uint8_t id;   ///< ID del sensor (3 = luz)
+  float data;   ///< Valor de luz leída (cast de entero a float)
+};
+
+WiFiUDP udp;
+
+/**
+ * @brief Conecta el ESP32 a la red WiFi.
+ */
+void connectToWiFi() {
+  WiFi.begin(ssid, password);
+  Serial.print("Conectando a WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\n✅ Conectado a WiFi");
+}
+
+/**
+ * @brief Lee la luz desde el LDR (ADC).
+ * @return float Valor analógico normalizado a tipo float.
+ */
+float readLightLevel() {
+  return (float)analogRead(LIGHT_SENSOR_PIN);
+}
+
+/**
+ * @brief Envía los datos del sensor al receptor vía UDP.
+ * @param id ID del sensor (3 = luz)
+ * @param value Valor de la luz a enviar
+ */
+void sendSensorData(uint8_t id, float value) {
+  SensorData payload;
+  payload.id = id;
+  payload.data = value;
+
+  udp.beginPacket(udpAddress, udpPort);
+  udp.write((uint8_t*)&payload, sizeof(SensorData));
+  udp.endPacket();
+
+  Serial.print("📤 Enviado -> ID: ");
+  Serial.print(payload.id);
+  Serial.print(" | Luz: ");
+  Serial.println(payload.data);
+}
+
+void setup() {
+  Serial.begin(115200);
+  connectToWiFi();
+}
+
+void loop() {
+  float lightValue = readLightLevel();
+  sendSensorData(3, lightValue);
+  delay(2000);
+}
