@@ -5,7 +5,7 @@
  * @details Este nodo ESP32 utiliza un sensor DHT11 para medir la humedad y transmite los datos
  * empaquetados como una estructura binaria a través de UDP hacia un receptor con IP conocida.
  * La transmisión se realiza cada 2 segundos. El código incluye la configuración de WiFi y el manejo 
- * 
+ * de errores de lectura del sensor.
  * @version 1.0
  * @date 2025-05-06
  */
