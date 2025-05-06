@@ -21,8 +21,8 @@
 #include <ArduinoJson.h>
 
 // === Configuración de red y Telegram ===
-#define SSID "Pomona Altos"
-#define PASSWORD "altosdepomona2525AP"
+#define SSID "El pocas"
+#define PASSWORD "nosequeponer"
 #define BOT_TOKEN "7836875521:AAGTRDghaQIzQcjYiftXSKeHS17xkPnClLs"
 #define CHAT_ID "1559018507"
 
@@ -40,7 +40,7 @@ constexpr float THRESHOLD_TEMP  = 24.0;
 constexpr float THRESHOLD_HUM   = 80.0;
 
 // === Tiempos máximos sin recibir datos (en milisegundos) ===
-constexpr unsigned long SENSOR_TIMEOUT_MS = 10000;
+constexpr unsigned long SENSOR_TIMEOUT_MS = 20000;
 
 // === Estructura para datos de sensor ===
 struct SensorData {
@@ -133,7 +133,6 @@ void verifyThresholdsAndNotify() {
     snprintf(message, sizeof(message), "🚨 *Alerta de sensores:*\n%s", alert);
     bot.sendMessage(CHAT_ID, message, "Markdown");
     Serial.println("Alerta enviada a Telegram");
-    delay(500); // Anti-spam
   }
 }
 
@@ -179,5 +178,4 @@ void setup() {
 void loop() {
   listenUDP();
   checkSensorTimeouts();
-  delay(500);
 }

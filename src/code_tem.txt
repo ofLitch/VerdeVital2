@@ -2,11 +2,11 @@
  * @file temperature_sender.cpp
  * @brief Nodo emisor de temperatura usando ESP32 y sensor DHT11.
  *
- * @details Este nodo se conecta a una red WiFi, lee la temperatura desde un sensor DHT11 
+ * @details Este nodo se conecta a una red WiFi, lee la temperatura desde un sensor DHT11
  * y envía los datos empaquetados (ID + float) al nodo receptor vía UDP.
  * El ID del sensor es 2, y el valor enviado es la temperatura en grados Celsius.
  *
- * @version 1.0
+ * @version 1.1
  * @date 2025-05-06
  */
 
@@ -15,22 +15,23 @@
 #include <DHT.h>
 
 // === Configuración de red WiFi ===
-const char* ssid = "Pomona Altos";
-const char* password = "altosdepomona2525AP";
+static const char* WIFI_SSID     = "El pocas";
+static const char* WIFI_PASSWORD = "nosequeponer";
 
 // === Configuración del receptor UDP ===
-const char* udpAddress = "192.168.1.11"; // Dirección IP del receptor
-const int udpPort = 4210;                // Puerto UDP del receptor
+static const char* UDP_ADDRESS = "192.168.128.26";
+static const uint16_t UDP_PORT = 4210;
 
 // === Configuración del sensor DHT ===
-#define DHTPIN 4         // Pin conectado al sensor DHT
-#define DHTTYPE DHT11    // Tipo de sensor DHT
-DHT dht(DHTPIN, DHTTYPE);
+static const uint8_t DHT_PIN   = 4;
+static const uint8_t SENSOR_ID = 2;  // ID del sensor de temperatura
+static const uint8_t DHT_TYPE  = DHT11;
+DHT dht(DHT_PIN, DHT_TYPE);
 
-// === Estructura para envío de datos ===
+// === Estructura para el envío de datos ===
 struct SensorData {
-  uint8_t id;     ///< ID del sensor (2 = temperatura)
-  float data;     ///< Valor de temperatura
+  uint8_t id;    ///< ID del sensor (2 = temperatura)
+  float data;    ///< Valor de temperatura en °C
 };
 
 WiFiUDP udp;
@@ -39,21 +40,13 @@ WiFiUDP udp;
   * @brief Conecta el ESP32 a la red WiFi.
   */
 void connectToWiFi() {
-  WiFi.begin(ssid, password);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.print("Conectando a WiFi");
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
-  Serial.println("\n✅ Conectado a WiFi");
-}
-
-/**
-  * @brief Lee la temperatura desde el sensor DHT11.
-  * @return float Temperatura en grados Celsius, o NAN si falla.
-  */
-float readTemperature() {
-  return dht.readTemperature();
+  Serial.println("\n✅ Conectado a WiFi. IP: " + WiFi.localIP().toString());
 }
 
 /**
@@ -62,19 +55,15 @@ float readTemperature() {
   * @param value Valor de la temperatura a enviar
   */
 void sendSensorData(uint8_t id, float value) {
-  SensorData payload;
-  payload.id = id;
-  payload.data = value;
+  if (WiFi.status() != WL_CONNECTED) return;  // Verifica conexión
 
-  udp.beginPacket(udpAddress, udpPort);
-  udp.write((uint8_t*)&payload, sizeof(SensorData));
+  SensorData payload = { id, value };
+
+  udp.beginPacket(UDP_ADDRESS, UDP_PORT);
+  udp.write(reinterpret_cast<const uint8_t*>(&payload), sizeof(payload));
   udp.endPacket();
 
-  Serial.print("📤 Enviado -> ID: ");
-  Serial.print(payload.id);
-  Serial.print(" | Temperatura: ");
-  Serial.print(payload.data);
-  Serial.println(" °C");
+  Serial.printf("📤 Enviado -> ID: %u | Temperatura: %.2f °C\n", payload.id, payload.data);
 }
 
 void setup() {
@@ -84,14 +73,13 @@ void setup() {
 }
 
 void loop() {
-  float temperature = readTemperature();
+  float temperature = dht.readTemperature();
 
   if (isnan(temperature)) {
-    Serial.println("❌ Error al leer la temperatura");
-    delay(2000);
-    return;
+    Serial.println("❌ Error al leer la temperatura del sensor DHT11");
+  } else {
+    sendSensorData(SENSOR_ID, temperature);
   }
 
-  sendSensorData(2, temperature);
-  delay(2000);
+  delay(2000);  // Espera 2 segundos entre mediciones
 }
